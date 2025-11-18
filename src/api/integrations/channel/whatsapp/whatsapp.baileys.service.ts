@@ -82,7 +82,7 @@ import { createId as cuid } from '@paralleldrive/cuid2';
 import { Instance, Message } from '@prisma/client';
 import { createJid } from '@utils/createJid';
 import { fetchLatestWaWebVersion } from '@utils/fetchLatestWaWebVersion';
-import {makeProxyAgent, makeProxyAgentUndici} from '@utils/makeProxyAgent';
+import { makeProxyAgent, makeProxyAgentUndici } from '@utils/makeProxyAgent';
 import { getOnWhatsappCache, saveOnWhatsappCache } from '@utils/onWhatsappCache';
 import { status } from '@utils/renderStatus';
 import { sendTelemetry } from '@utils/sendTelemetry';
@@ -748,7 +748,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
       if (chatsToInsert.length > 0) {
         if (this.configService.get<Database>('DATABASE').SAVE_DATA.CHATS)
-          await this.prismaRepository.chat.createMany({ data: chatsToInsert, skipDuplicates: true });
+          await this.prismaRepository.chat.createMany({ data: chatsToInsert });
       }
     },
 
@@ -968,7 +968,7 @@ export class BaileysStartupService extends ChannelStartupService {
         this.sendDataWebhook(Events.CHATS_SET, chatsRaw);
 
         if (this.configService.get<Database>('DATABASE').SAVE_DATA.HISTORIC) {
-          await this.prismaRepository.chat.createMany({ data: chatsRaw, skipDuplicates: true });
+          await this.prismaRepository.chat.createMany({ data: chatsRaw });
         }
 
         const messagesRaw: any[] = [];
@@ -1025,7 +1025,7 @@ export class BaileysStartupService extends ChannelStartupService {
         this.sendDataWebhook(Events.MESSAGES_SET, [...messagesRaw]);
 
         if (this.configService.get<Database>('DATABASE').SAVE_DATA.HISTORIC) {
-          await this.prismaRepository.message.createMany({ data: messagesRaw, skipDuplicates: true });
+          await this.prismaRepository.message.createMany({ data: messagesRaw });
         }
 
         if (
