@@ -70,7 +70,7 @@
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
     "@aws-sdk/client-sqs": "^3.891.0",
-    "@electric-sql/pglite": "^0.3.14",
+    "@electric-sql/pglite": "0.3.14",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@figuro/chatwoot-sdk": "^1.1.16",
     "@hapi/boom": "^10.0.1",
@@ -112,7 +112,7 @@
     "node-cron": "^3.0.3",
     "openai": "^4.77.3",
     "pg": "^8.13.1",
-    "pglite-prisma-adapter": "^0.6.1",
+    "pglite-prisma-adapter": "0.6.1",
     "pino": "^9.10.0",
     "prisma": "^6.1.0",
     "pusher": "^5.2.0",
