@@ -1,0 +1,10 @@
+ignoredBuiltDependencies:
+  - '@ffmpeg-installer/linux-x64'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@scarf/scarf'
+  - baileys
+  - esbuild
+  - prisma
+  - protobufjs
+  - sharp

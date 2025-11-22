@@ -22,7 +22,7 @@ if (fs.existsSync(envPath)) {
 module.exports = {
   apps: [
     {
-      name: 'Evolution API (PGlite)',
+      name: 'Evolution API',
       cwd: __dirname,
       script: 'npm',
       args: 'run start',

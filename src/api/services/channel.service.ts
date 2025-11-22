@@ -708,16 +708,12 @@ export class ChannelStartupService {
   }
 
   public async fetchChats(query: any) {
-    // SQLite-compatible version of fetchChats
-    // Fallback to using Prisma ORM instead of raw SQL for better SQLite compatibility
-
     const remoteJid = query?.where?.remoteJid
       ? query?.where?.remoteJid.includes('@')
         ? query.where?.remoteJid
         : createJid(query.where?.remoteJid)
       : null;
 
-    // Use Prisma's query builder for SQLite compatibility
     const contacts = await this.prismaRepository.contact.findMany({
       where: {
         instanceId: this.instanceId,
@@ -730,7 +726,6 @@ export class ChannelStartupService {
       },
     });
 
-    // Simplified return for SQLite - just return contacts without complex joins
     // The Omni layer will handle any additional data mapping needed
     if (contacts && isArray(contacts) && contacts.length > 0) {
       return contacts.map((contact) => ({
