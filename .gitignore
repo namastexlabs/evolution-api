@@ -51,3 +51,8 @@ lerna-debug.log*
 # PGLite database files
 /data/pglite/
 .pglite/
+
+# Core dumps
+core
+core.*
+*.core
