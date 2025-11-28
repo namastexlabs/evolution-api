@@ -18,7 +18,6 @@ type DataValidate<T> = {
 const logger = new Logger('Validate');
 
 export abstract class RouterBroker {
-  constructor() {}
   public routerPath(path: string, param = true) {
     let route = '/' + path;
     param ? (route += '/:instanceName') : null;
