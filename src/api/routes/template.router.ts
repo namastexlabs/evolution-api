@@ -3,11 +3,14 @@ import { InstanceDto } from '@api/dto/instance.dto';
 import { TemplateDto } from '@api/dto/template.dto';
 import { templateController } from '@api/server.module';
 import { ConfigService } from '@config/env.config';
+import { Logger } from '@config/logger.config';
 import { createMetaErrorResponse } from '@utils/errorResponse';
 import { instanceSchema, templateSchema } from '@validate/validate.schema';
 import { RequestHandler, Router } from 'express';
 
 import { HttpStatus } from './index.router';
+
+const logger = new Logger('TemplateRouter');
 
 export class TemplateRouter extends RouterBroker {
   constructor(
@@ -28,7 +31,7 @@ export class TemplateRouter extends RouterBroker {
           res.status(HttpStatus.CREATED).json(response);
         } catch (error) {
           // Log error for debugging
-          console.error('Template creation error:', error);
+          logger.error(`Template creation error: ${error}`);
 
           // Use utility function to create standardized error response
           const errorResponse = createMetaErrorResponse(error, 'template_creation');
@@ -47,7 +50,7 @@ export class TemplateRouter extends RouterBroker {
           res.status(HttpStatus.OK).json(response);
         } catch (error) {
           // Log error for debugging
-          console.error('Template find error:', error);
+          logger.error(`Template find error: ${error}`);
 
           // Use utility function to create standardized error response
           const errorResponse = createMetaErrorResponse(error, 'template_find');
