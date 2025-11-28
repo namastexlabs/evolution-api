@@ -646,13 +646,13 @@ export class BaileysStartupService extends ChannelStartupService {
     this.eventHandler();
 
     this.client.ws.on('CB:call', (packet) => {
-      console.log('CB:call', packet);
+      this.logger.log(`CB:call ${JSON.stringify(packet)}`);
       const payload = { event: 'CB:call', packet: packet };
       this.sendDataWebhook(Events.CALL, payload, true, ['websocket']);
     });
 
     this.client.ws.on('CB:ack,class:call', (packet) => {
-      console.log('CB:ack,class:call', packet);
+      this.logger.log(`CB:ack,class:call ${JSON.stringify(packet)}`);
       const payload = { event: 'CB:ack,class:call', packet: packet };
       this.sendDataWebhook(Events.CALL, payload, true, ['websocket']);
     });
@@ -791,7 +791,7 @@ export class BaileysStartupService extends ChannelStartupService {
           );
         }
       } catch (error) {
-        console.error(error);
+        this.logger.error(`${error}`);
         this.logger.error(`Error: ${error.message}`);
       }
     },
@@ -841,9 +841,9 @@ export class BaileysStartupService extends ChannelStartupService {
     }) => {
       try {
         if (syncType === proto.HistorySync.HistorySyncType.ON_DEMAND) {
-          console.log('received on-demand history sync, messages=', messages);
+          this.logger.log(`received on-demand history sync, messages= ${JSON.stringify(messages)}`);
         }
-        console.log(
+        this.logger.log(
           `recv ${chats.length} chats, ${contacts.length} contacts, ${messages.length} msgs (is latest: ${isLatest}, progress: ${progress}%), type: ${syncType}`,
         );
 
@@ -962,14 +962,14 @@ export class BaileysStartupService extends ChannelStartupService {
             if (text == 'requestPlaceholder' && !requestId) {
               const messageId = await this.client.requestPlaceholderResend(received.key);
 
-              console.log('requested placeholder resync, id=', messageId);
+              this.logger.log(`requested placeholder resync, id= ${messageId}`);
             } else if (requestId) {
-              console.log('Message received from phone, id=', requestId, received);
+              this.logger.log(`Message received from phone, id= ${requestId}, received: ${JSON.stringify(received)}`);
             }
 
             if (text == 'onDemandHistSync') {
               const messageId = await this.client.fetchMessageHistory(50, received.key, received.messageTimestamp!);
-              console.log('requested on-demand sync, id=', messageId);
+              this.logger.log(`requested on-demand sync, id= ${messageId}`);
             }
           }
 
@@ -1053,7 +1053,7 @@ export class BaileysStartupService extends ChannelStartupService {
                   data: { name: received.pushName },
                 });
               } catch {
-                console.log(`Chat insert record ignored: ${received.key.remoteJid} - ${this.instanceId}`);
+                this.logger.log(`Chat insert record ignored: ${received.key.remoteJid} - ${this.instanceId}`);
               }
             }
           }
@@ -1378,7 +1378,7 @@ export class BaileysStartupService extends ChannelStartupService {
               try {
                 await this.prismaRepository.chat.update({ where: { id: existingChat.id }, data: chatToInsert });
               } catch {
-                console.log(`Chat insert record ignored: ${chatToInsert.remoteJid} - ${chatToInsert.instanceId}`);
+                this.logger.log(`Chat insert record ignored: ${chatToInsert.remoteJid} - ${chatToInsert.instanceId}`);
               }
             }
           }
@@ -2526,7 +2526,7 @@ export class BaileysStartupService extends ChannelStartupService {
         return await sharp(imageBuffer).webp().toBuffer();
       }
     } catch (error) {
-      console.error('Erro ao converter a imagem para WebP:', error);
+      this.logger.error(`Erro ao converter a imagem para WebP: ${error}`);
       throw error;
     }
   }
@@ -2666,7 +2666,7 @@ export class BaileysStartupService extends ChannelStartupService {
       });
 
       ffmpegProcess.on('error', (error) => {
-        console.error('Error in ffmpeg process', error);
+        this.logger.error(`Error in ffmpeg process: ${error}`);
         reject(error);
       });
 
@@ -2685,7 +2685,7 @@ export class BaileysStartupService extends ChannelStartupService {
       inputStream.pipe(ffmpegProcess.stdin);
 
       inputStream.on('error', (err) => {
-        console.error('Error in inputStream', err);
+        this.logger.error(`Error in inputStream: ${err}`);
         ffmpegProcess.stdin.end();
         reject(err);
       });
@@ -2746,7 +2746,7 @@ export class BaileysStartupService extends ChannelStartupService {
         });
 
         outputAudioStream.on('error', (error) => {
-          console.log('error', error);
+          this.logger.log(`error: ${error}`);
           reject(error);
         });
 
@@ -2788,8 +2788,8 @@ export class BaileysStartupService extends ChannelStartupService {
             '0',
           ])
           .pipe(outputAudioStream, { end: true })
-          .on('error', function (error) {
-            console.log('error', error);
+          .on('error', (error) => {
+            this.logger.log(`error: ${error}`);
             reject(error);
           });
       });
@@ -2802,7 +2802,7 @@ export class BaileysStartupService extends ChannelStartupService {
     if (file?.buffer) {
       mediaData.audio = file.buffer.toString('base64');
     } else if (!isURL(data.audio) && !isBase64(data.audio)) {
-      console.error('Invalid file or audio source');
+      this.logger.error('Invalid file or audio source');
       throw new BadRequestException('File buffer, URL, or base64 audio is required');
     }
 
@@ -3895,7 +3895,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
     if ((cacheConf?.REDIS?.ENABLED && cacheConf?.REDIS?.URI !== '') || cacheConf?.LOCAL?.ENABLED) {
       if (await groupMetadataCache?.has(groupJid)) {
-        console.log(`Cache request for group: ${groupJid}`);
+        this.logger.log(`Cache request for group: ${groupJid}`);
         const meta = await groupMetadataCache.get(groupJid);
 
         if (Date.now() - meta.timestamp > 3600000) {
@@ -3905,7 +3905,7 @@ export class BaileysStartupService extends ChannelStartupService {
         return meta.data;
       }
 
-      console.log(`Cache request for group: ${groupJid} - not found`);
+      this.logger.log(`Cache request for group: ${groupJid} - not found`);
       return await this.updateGroupMetadataCache(groupJid);
     }
 
@@ -4146,7 +4146,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
       return { participants: parsedParticipants };
     } catch (error) {
-      console.error(error);
+      this.logger.error(`${error}`);
       throw new NotFoundException('No participants', error.toString());
     }
   }
@@ -4418,7 +4418,7 @@ export class BaileysStartupService extends ChannelStartupService {
   }
 
   public async baileysSendNode(stanza: any) {
-    console.log('stanza', JSON.stringify(stanza));
+    this.logger.log(`stanza: ${JSON.stringify(stanza)}`);
     const response = await this.client.sendNode(stanza);
 
     return response;
