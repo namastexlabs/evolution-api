@@ -1218,6 +1218,11 @@ export class BaileysStartupService extends ChannelStartupService {
             }
           }
 
+          // Use alternative remoteJid when @lid is present
+          if (messageRaw.key.remoteJid?.includes('@lid') && messageRaw.key.remoteJidAlt) {
+            messageRaw.key.remoteJid = messageRaw.key.remoteJidAlt;
+          }
+
           this.logger.verbose(messageRaw);
 
           sendTelemetry(`received.message.${messageRaw.messageType ?? 'unknown'}`);
