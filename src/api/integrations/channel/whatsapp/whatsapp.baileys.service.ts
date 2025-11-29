@@ -261,6 +261,26 @@ export class BaileysStartupService extends ChannelStartupService {
 
     this.client?.ws?.close();
 
+    // Clean up cryptographic keys from Redis/Prisma to prevent stale session on reconnect
+    const db = this.configService.get<Database>('DATABASE');
+    const cache = this.configService.get<CacheConf>('CACHE');
+    const provider = this.configService.get<ProviderSession>('PROVIDER');
+
+    if (provider?.ENABLED) {
+      const authState = await this.authStateProvider.authStateProvider(this.instance.id);
+      await authState.removeCreds();
+    }
+
+    if (cache?.REDIS.ENABLED && cache?.REDIS.SAVE_INSTANCES) {
+      const authState = await useMultiFileAuthStateRedisDb(this.instance.id, this.cache);
+      await authState.removeCreds();
+    }
+
+    if (db.SAVE_DATA.INSTANCE) {
+      const authState = await useMultiFileAuthStatePrisma(this.instance.id, this.cache);
+      await authState.removeCreds();
+    }
+
     const sessionExists = await this.prismaRepository.session.findFirst({ where: { sessionId: this.instanceId } });
     if (sessionExists) {
       await this.prismaRepository.session.delete({ where: { sessionId: this.instanceId } });
@@ -668,6 +688,11 @@ export class BaileysStartupService extends ChannelStartupService {
       this.loadSettings();
       this.loadWebhook();
       this.loadProxy();
+
+      // Remontar o messageProcessor para garantir que está funcionando após reconexão
+      this.messageProcessor.mount({
+        onMessageReceive: this.messageHandle['messages.upsert'].bind(this),
+      });
 
       return await this.createClient(number);
     } catch (error) {
@@ -1191,6 +1216,11 @@ export class BaileysStartupService extends ChannelStartupService {
                 this.logger.error(['Error converting media to base64', error?.message]);
               }
             }
+          }
+
+          // Use alternative remoteJid when @lid is present
+          if (messageRaw.key.remoteJid?.includes('@lid') && messageRaw.key.remoteJidAlt) {
+            messageRaw.key.remoteJid = messageRaw.key.remoteJidAlt;
           }
 
           this.logger.verbose(messageRaw);
@@ -2870,9 +2900,9 @@ export class BaileysStartupService extends ChannelStartupService {
       if (Buffer.isBuffer(convert)) {
         const waveform = await this.generateWaveform(convert);
 
-        const result = this.sendMessageWithTyping<AnyMessageContent>(
+        const result = this.sendMessageWithTyping(
           data.number,
-          { audio: convert, ptt: true, mimetype: 'audio/ogg; codecs=opus', waveform },
+          { audio: convert, ptt: true, mimetype: 'audio/ogg; codecs=opus', waveform } as AnyMessageContent,
           { presence: 'recording', delay: data?.delay },
           isIntegration,
         );
@@ -2888,14 +2918,14 @@ export class BaileysStartupService extends ChannelStartupService {
     // Generate waveform only for buffers (not URLs)
     const waveform = Buffer.isBuffer(audioData) ? await this.generateWaveform(audioData) : undefined;
 
-    return await this.sendMessageWithTyping<AnyMessageContent>(
+    return await this.sendMessageWithTyping(
       data.number,
       {
         audio: audioData,
         ptt: true,
         mimetype: 'audio/ogg; codecs=opus',
         ...(waveform && { waveform }),
-      },
+      } as AnyMessageContent,
       { presence: 'recording', delay: data?.delay },
       isIntegration,
     );
