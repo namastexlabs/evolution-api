@@ -1,7 +1,10 @@
+import { Logger } from '@config/logger.config';
 import { ConnectionState, WAConnectionState, WASocket } from 'baileys';
 import { io, Socket } from 'socket.io-client';
 
 import { ClientToServerEvents, ServerToClientEvents } from './transport.type';
+
+const loggerInstance = new Logger('VoiceCallsBaileys');
 
 let baileys_connection_state: WAConnectionState = 'close';
 
@@ -19,7 +22,7 @@ export const useVoiceCallsBaileys = async (
   });
 
   socket.on('connect', () => {
-    if (logger) console.log('[*] - Wavoip connected', socket.id);
+    if (logger) loggerInstance.log(`[*] - Wavoip connected ${socket.id}`);
 
     socket.emit(
       'init',
@@ -30,18 +33,17 @@ export const useVoiceCallsBaileys = async (
   });
 
   socket.on('disconnect', () => {
-    if (logger) console.log('[*] - Wavoip disconnect');
+    if (logger) loggerInstance.log('[*] - Wavoip disconnect');
   });
 
   socket.on('connect_error', (error) => {
     if (socket.active) {
       if (logger)
-        console.log(
-          '[*] - Wavoip connection error temporary failure, the socket will automatically try to reconnect',
-          error,
+        loggerInstance.log(
+          `[*] - Wavoip connection error temporary failure, the socket will automatically try to reconnect: ${error}`,
         );
     } else {
-      if (logger) console.log('[*] - Wavoip connection error', error.message);
+      if (logger) loggerInstance.log(`[*] - Wavoip connection error: ${error.message}`);
     }
   });
 
@@ -51,9 +53,9 @@ export const useVoiceCallsBaileys = async (
 
       callback(response);
 
-      if (logger) console.log('[*] Success on call onWhatsApp function', response, jid);
+      if (logger) loggerInstance.log(`[*] Success on call onWhatsApp function - jid: ${jid}`);
     } catch (error) {
-      if (logger) console.error('[*] Error on call onWhatsApp function', error);
+      if (logger) loggerInstance.error(`[*] Error on call onWhatsApp function: ${error}`);
     }
   });
 
@@ -63,9 +65,9 @@ export const useVoiceCallsBaileys = async (
 
       callback(response);
 
-      if (logger) console.log('[*] Success on call profilePictureUrl function', response);
+      if (logger) loggerInstance.log('[*] Success on call profilePictureUrl function');
     } catch (error) {
-      if (logger) console.error('[*] Error on call profilePictureUrl function', error);
+      if (logger) loggerInstance.error(`[*] Error on call profilePictureUrl function: ${error}`);
     }
   });
 
@@ -75,9 +77,9 @@ export const useVoiceCallsBaileys = async (
 
       callback(response);
 
-      if (logger) console.log('[*] Success on call assertSessions function', response);
+      if (logger) loggerInstance.log('[*] Success on call assertSessions function');
     } catch (error) {
-      if (logger) console.error('[*] Error on call assertSessions function', error);
+      if (logger) loggerInstance.error(`[*] Error on call assertSessions function: ${error}`);
     }
   });
 
@@ -87,9 +89,9 @@ export const useVoiceCallsBaileys = async (
 
       callback(response, true);
 
-      if (logger) console.log('[*] Success on call createParticipantNodes function', response);
+      if (logger) loggerInstance.log('[*] Success on call createParticipantNodes function');
     } catch (error) {
-      if (logger) console.error('[*] Error on call createParticipantNodes function', error);
+      if (logger) loggerInstance.error(`[*] Error on call createParticipantNodes function: ${error}`);
     }
   });
 
@@ -99,9 +101,9 @@ export const useVoiceCallsBaileys = async (
 
       callback(response);
 
-      if (logger) console.log('[*] Success on call getUSyncDevices function', response);
+      if (logger) loggerInstance.log('[*] Success on call getUSyncDevices function');
     } catch (error) {
-      if (logger) console.error('[*] Error on call getUSyncDevices function', error);
+      if (logger) loggerInstance.error(`[*] Error on call getUSyncDevices function: ${error}`);
     }
   });
 
@@ -111,22 +113,22 @@ export const useVoiceCallsBaileys = async (
 
       callback(response);
 
-      if (logger) console.log('[*] Success on call generateMessageTag function', response);
+      if (logger) loggerInstance.log('[*] Success on call generateMessageTag function');
     } catch (error) {
-      if (logger) console.error('[*] Error on call generateMessageTag function', error);
+      if (logger) loggerInstance.error(`[*] Error on call generateMessageTag function: ${error}`);
     }
   });
 
   socket.on('sendNode', async (stanza, callback) => {
     try {
-      console.log('sendNode', JSON.stringify(stanza));
-      const response = await baileys_sock.sendNode(stanza);
+      loggerInstance.log(`sendNode: ${JSON.stringify(stanza)}`);
+      await baileys_sock.sendNode(stanza);
 
       callback(true);
 
-      if (logger) console.log('[*] Success on call sendNode function', response);
+      if (logger) loggerInstance.log('[*] Success on call sendNode function');
     } catch (error) {
-      if (logger) console.error('[*] Error on call sendNode function', error);
+      if (logger) loggerInstance.error(`[*] Error on call sendNode function: ${error}`);
     }
   });
 
@@ -140,9 +142,9 @@ export const useVoiceCallsBaileys = async (
 
       callback(response);
 
-      if (logger) console.log('[*] Success on call signalRepository:decryptMessage function', response);
+      if (logger) loggerInstance.log('[*] Success on call signalRepository:decryptMessage function');
     } catch (error) {
-      if (logger) console.error('[*] Error on call signalRepository:decryptMessage function', error);
+      if (logger) loggerInstance.error(`[*] Error on call signalRepository:decryptMessage function: ${error}`);
     }
   });
 
@@ -168,12 +170,12 @@ export const useVoiceCallsBaileys = async (
   });
 
   baileys_sock.ws.on('CB:call', (packet) => {
-    if (logger) console.log('[*] Signling received');
+    if (logger) loggerInstance.log('[*] Signling received');
     socket.volatile.timeout(1000).emit('CB:call', packet);
   });
 
   baileys_sock.ws.on('CB:ack,class:call', (packet) => {
-    if (logger) console.log('[*] Signling ack received');
+    if (logger) loggerInstance.log('[*] Signling ack received');
     socket.volatile.timeout(1000).emit('CB:ack,class:call', packet);
   });
 

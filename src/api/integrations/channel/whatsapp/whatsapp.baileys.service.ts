@@ -1728,7 +1728,7 @@ export class BaileysStartupService extends ChannelStartupService {
     const onWhatsapp = (await this.whatsappNumber({ numbers: [jid] }))?.shift();
 
     if (!onWhatsapp.exists) {
-      throw new BadRequestException(onWhatsapp);
+      throw new BadRequestException(`Number ${onWhatsapp.number} does not exist on WhatsApp`);
     }
 
     try {
@@ -1953,7 +1953,7 @@ export class BaileysStartupService extends ChannelStartupService {
     const isWA = (await this.whatsappNumber({ numbers: [number] }))?.shift();
 
     if (!isWA.exists && !isJidGroup(isWA.jid) && !isWA.jid.includes('@broadcast')) {
-      throw new BadRequestException(isWA);
+      throw new BadRequestException(`Number ${isWA.number} does not exist on WhatsApp`);
     }
 
     const sender = isWA.jid.toLowerCase();
@@ -2193,7 +2193,7 @@ export class BaileysStartupService extends ChannelStartupService {
       const isWA = (await this.whatsappNumber({ numbers: [number] }))?.shift();
 
       if (!isWA.exists && !isJidGroup(isWA.jid) && !isWA.jid.includes('@broadcast')) {
-        throw new BadRequestException(isWA);
+        throw new BadRequestException(`Number ${isWA.number} does not exist on WhatsApp`);
       }
 
       const sender = isWA.jid;
@@ -3418,10 +3418,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
       return { chatId: number, archived: true };
     } catch (error) {
-      throw new InternalServerErrorException({
-        archived: false,
-        message: ['An error occurred while archiving the chat. Open a calling.', error.toString()],
-      });
+      throw new InternalServerErrorException(`An error occurred while archiving the chat: ${error.toString()}`);
     }
   }
 
@@ -3446,10 +3443,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
       return { chatId: number, markedChatUnread: true };
     } catch (error) {
-      throw new InternalServerErrorException({
-        markedChatUnread: false,
-        message: ['An error occurred while marked unread the chat. Open a calling.', error.toString()],
-      });
+      throw new InternalServerErrorException(`An error occurred while marking the chat as unread: ${error.toString()}`);
     }
   }
 
@@ -3800,7 +3794,7 @@ export class BaileysStartupService extends ChannelStartupService {
       const isWA = (await this.whatsappNumber({ numbers: [number] }))?.shift();
 
       if (!isWA.exists && !isJidGroup(isWA.jid) && !isWA.jid.includes('@broadcast')) {
-        throw new BadRequestException(isWA);
+        throw new BadRequestException(`Number ${isWA.number} does not exist on WhatsApp`);
       }
 
       const sender = isWA.jid;
@@ -4557,7 +4551,7 @@ export class BaileysStartupService extends ChannelStartupService {
     const onWhatsapp = (await this.whatsappNumber({ numbers: [jid] }))?.shift();
 
     if (!onWhatsapp.exists) {
-      throw new BadRequestException(onWhatsapp);
+      throw new BadRequestException(`Number ${onWhatsapp.number} does not exist on WhatsApp`);
     }
 
     try {
@@ -4626,7 +4620,7 @@ export class BaileysStartupService extends ChannelStartupService {
     const onWhatsapp = (await this.whatsappNumber({ numbers: [jid] }))?.shift();
 
     if (!onWhatsapp.exists) {
-      throw new BadRequestException(onWhatsapp);
+      throw new BadRequestException(`Number ${onWhatsapp.number} does not exist on WhatsApp`);
     }
 
     try {

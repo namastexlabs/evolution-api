@@ -32,6 +32,8 @@ export const sendTelemetry = async (route: string): Promise<void> => {
 
   axios
     .post(url, telemetry)
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     .then(() => {})
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     .catch(() => {});
 };
