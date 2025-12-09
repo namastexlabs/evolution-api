@@ -112,9 +112,15 @@ model OmniTracePayloads {
 }
 
 model OmniUserExternalIds {
-  id Int @id @default(autoincrement())
+  id          Int     @id @default(autoincrement()) @map("id")
+  provider    String  @db.VarChar(100) @map("provider")
+  externalId  String  @db.VarChar(255) @map("external_id")
+  instanceName String? @db.VarChar(255) @map("instance_name")
+
   @@map("omni_user_external_ids")
-  @@ignore
+  @@unique([provider, externalId, instanceName], map: "uq_user_external_provider_instance")
+  @@index([provider], map: "ix_omni_user_external_ids_provider")
+  @@index([externalId], map: "ix_omni_user_external_ids_external_id")
 }
 
 model OmniUserPreferences {
