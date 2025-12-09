@@ -68,12 +68,12 @@ model Instance {
 /// Stub models for Omni (Python) tables to prevent Prisma from attempting to drop them.
 /// They are ignored by Prisma migrations but keep db push from treating them as extraneous.
 model OmniAccessRules {
-  id           Int       @id @default(autoincrement())
-  instanceName String?   @db.VarChar(255)
-  phoneNumber  String    @db.VarChar(255)
-  ruleType     String    @db.VarChar(10)
-  createdAt    DateTime? @db.Timestamp
-  updatedAt    DateTime? @db.Timestamp
+  id           Int       @id @default(autoincrement()) @map("id")
+  instanceName String?   @db.VarChar(255) @map("instance_name")
+  phoneNumber  String    @db.VarChar(255) @map("phone_number")
+  ruleType     String    @db.VarChar(10) @map("rule_type")
+  createdAt    DateTime? @db.Timestamp @map("created_at")
+  updatedAt    DateTime? @db.Timestamp @map("updated_at")
 
   @@map("omni_access_rules")
   @@unique([instanceName, phoneNumber, ruleType], map: "uq_access_rules_scope_phone_rule")
