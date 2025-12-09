@@ -132,7 +132,6 @@ import { LabelAssociation } from 'baileys/lib/Types/LabelAssociation';
 import { spawn } from 'child_process';
 import { isArray, isBase64, isURL } from 'class-validator';
 import EventEmitter2 from 'eventemitter2';
-import ffmpeg from 'fluent-ffmpeg';
 import FormData from 'form-data';
 import Long from 'long';
 import mimeTypes from 'mime-types';
@@ -2821,62 +2820,89 @@ export class BaileysStartupService extends ChannelStartupService {
       const isLpcm = isURL(audio) && /\.lpcm($|\?)/i.test(audio);
 
       return new Promise((resolve, reject) => {
-        const outputAudioStream = new PassThrough();
-        const chunks: Buffer[] = [];
+        // Build ffmpeg arguments
+        const inputArgs: string[] = [];
+        if (isLpcm) {
+          this.logger.verbose('Detected LPCM input – applying raw PCM settings');
+          inputArgs.push('-f', 's16le', '-ar', '24000', '-ac', '1');
+        }
 
-        outputAudioStream.on('data', (chunk) => chunks.push(chunk));
-        outputAudioStream.on('end', () => {
-          const outputBuffer = Buffer.concat(chunks);
-          resolve(outputBuffer);
+        const ffmpegArgs = [
+          ...inputArgs,
+          '-i',
+          'pipe:0',
+          '-vn',
+          '-c:a',
+          'libopus',
+          '-b:a',
+          '128k',
+          '-ar',
+          '48000',
+          '-ac',
+          '1',
+          '-avoid_negative_ts',
+          'make_zero',
+          '-write_xing',
+          '0',
+          '-compression_level',
+          '10',
+          '-application',
+          'voip',
+          '-fflags',
+          '+bitexact',
+          '-flags',
+          '+bitexact',
+          '-id3v2_version',
+          '0',
+          '-map_metadata',
+          '-1',
+          '-map_chapters',
+          '-1',
+          '-write_bext',
+          '0',
+          '-f',
+          'ogg',
+          'pipe:1',
+        ];
+
+        const ffmpegProcess = spawn(ffmpegPath.path, ffmpegArgs);
+
+        const outputChunks: Buffer[] = [];
+        let stderrData = '';
+
+        ffmpegProcess.stdout.on('data', (chunk) => {
+          outputChunks.push(chunk);
         });
 
-        outputAudioStream.on('error', (error) => {
-          console.log('error', error);
+        ffmpegProcess.stderr.on('data', (data) => {
+          stderrData += data.toString();
+          this.logger.verbose(`ffmpeg stderr: ${data}`);
+        });
+
+        ffmpegProcess.on('error', (error) => {
+          this.logger.error('Error in ffmpeg process');
           reject(error);
         });
 
-        ffmpeg.setFfmpegPath(ffmpegPath.path);
+        ffmpegProcess.on('close', (code) => {
+          if (code === 0) {
+            this.logger.verbose('Audio converted to ogg/opus');
+            const outputBuffer = Buffer.concat(outputChunks);
+            resolve(outputBuffer);
+          } else {
+            this.logger.error(`ffmpeg exited with code ${code}`);
+            this.logger.error(`ffmpeg stderr: ${stderrData}`);
+            reject(new Error(`ffmpeg exited with code ${code}: ${stderrData}`));
+          }
+        });
 
-        let command = ffmpeg(inputAudioStream);
+        inputAudioStream.pipe(ffmpegProcess.stdin);
 
-        if (isLpcm) {
-          this.logger.verbose('Detected LPCM input – applying raw PCM settings');
-          command = command.inputFormat('s16le').inputOptions(['-ar', '24000', '-ac', '1']);
-        }
-
-        command
-          .outputFormat('ogg')
-          .noVideo()
-          .audioCodec('libopus')
-          .addOutputOptions('-avoid_negative_ts make_zero')
-          .audioBitrate('128k')
-          .audioFrequency(48000)
-          .audioChannels(1)
-          .outputOptions([
-            '-write_xing',
-            '0',
-            '-compression_level',
-            '10',
-            '-application',
-            'voip',
-            '-fflags',
-            '+bitexact',
-            '-flags',
-            '+bitexact',
-            '-id3v2_version',
-            '0',
-            '-map_metadata',
-            '-1',
-            '-map_chapters',
-            '-1',
-            '-write_bext',
-            '0',
-          ])
-          .pipe(outputAudioStream, { end: true })
-          .on('error', function (error) {
-            console.log('error', error);
-            reject(error);
-          });
+        inputAudioStream.on('error', (err) => {
+          this.logger.error('Error in inputAudioStream');
+          ffmpegProcess.stdin.end();
+          reject(err);
+        });
       });
     }
   }
