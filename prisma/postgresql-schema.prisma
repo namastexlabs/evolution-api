@@ -65,6 +65,70 @@ model Instance {
   @@map("evo_Instance")
 }
 
+/// Stub models for Omni (Python) tables to prevent Prisma from attempting to drop them.
+/// They are ignored by Prisma migrations but keep db push from treating them as extraneous.
+model OmniAccessRules {
+  id           Int       @id @default(autoincrement())
+  instanceName String?   @db.VarChar(255)
+  phoneNumber  String    @db.VarChar(255)
+  ruleType     String    @db.VarChar(10)
+  createdAt    DateTime? @db.Timestamp
+  updatedAt    DateTime? @db.Timestamp
+
+  @@map("omni_access_rules")
+  @@unique([instanceName, phoneNumber, ruleType], map: "uq_access_rules_scope_phone_rule")
+  @@index([instanceName], map: "ix_omni_access_rules_instance_name")
+  @@index([phoneNumber], map: "ix_omni_access_rules_phone_number")
+}
+
+model OmniGlobalSettings {
+  id Int @id @default(autoincrement())
+  @@map("omni_global_settings")
+  @@ignore
+}
+
+model OmniInstanceConfigs {
+  id Int @id @default(autoincrement())
+  @@map("omni_instance_configs")
+  @@ignore
+}
+
+model OmniMessageTraces {
+  trace_id String @id
+  @@map("omni_message_traces")
+  @@ignore
+}
+
+model OmniSettingChangeHistory {
+  id Int @id @default(autoincrement())
+  @@map("omni_setting_change_history")
+  @@ignore
+}
+
+model OmniTracePayloads {
+  id Int @id @default(autoincrement())
+  @@map("omni_trace_payloads")
+  @@ignore
+}
+
+model OmniUserExternalIds {
+  id Int @id @default(autoincrement())
+  @@map("omni_user_external_ids")
+  @@ignore
+}
+
+model OmniUserPreferences {
+  id Int @id @default(autoincrement())
+  @@map("omni_user_preferences")
+  @@ignore
+}
+
+model OmniUsers {
+  id String @id
+  @@map("omni_users")
+  @@ignore
+}
+
 model Session {
   id        String   @id @default(cuid())
   sessionId String   @unique
@@ -329,4 +393,3 @@ model IsOnWhatsapp {
 
   @@map("evo_IsOnWhatsapp")
 }
-
