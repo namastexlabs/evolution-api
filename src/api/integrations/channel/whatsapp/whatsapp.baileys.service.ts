@@ -4503,6 +4503,53 @@ export class BaileysStartupService extends ChannelStartupService {
     return response;
   }
 
+  /**
+   * Resolve LID (Linked ID) to phone number using Baileys internal mapping.
+   * WhatsApp multi-device uses LID format internally, this converts to phone number.
+   */
+  public async resolveLidToPhoneNumber(lid: string): Promise<string | null> {
+    try {
+      if (!lid.includes('@lid')) {
+        return lid; // Already in phone format or other format
+      }
+
+      // Use Baileys signal repository to get phone number from LID
+      const rawPhoneNumber = await this.client.signalRepository?.lidMapping?.getPNForLID(lid);
+      if (rawPhoneNumber) {
+        // Extract just the phone number part (remove @s.whatsapp.net and device suffix)
+        // e.g., "5511947879044:0@s.whatsapp.net" -> "5511947879044"
+        const cleanNumber = rawPhoneNumber.split('@')[0].split(':')[0];
+        return cleanNumber;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.warn(`Failed to resolve LID ${lid}: ${error?.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Resolve multiple LIDs to phone numbers in batch
+   */
+  public async resolveLidsToPhoneNumbers(lids: string[]): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+
+    for (const lid of lids) {
+      if (!lid.includes('@lid')) {
+        result.set(lid, lid);
+        continue;
+      }
+
+      const phoneNumber = await this.resolveLidToPhoneNumber(lid);
+      if (phoneNumber) {
+        result.set(lid, phoneNumber);
+      }
+    }
+
+    return result;
+  }
+
   public async baileysProfilePictureUrl(jid: string, type: 'image' | 'preview', timeoutMs: number) {
     const response = await this.client.profilePictureUrl(jid, type, timeoutMs);
 

@@ -10,7 +10,6 @@ import { NotFoundException } from '@exceptions';
 import { Contact, Message, Prisma } from '@prisma/client';
 import { createJid } from '@utils/createJid';
 import { WASocket } from 'baileys';
-import { isArray } from 'class-validator';
 import EventEmitter2 from 'eventemitter2';
 import { v4 } from 'uuid';
 
@@ -434,6 +433,54 @@ export class ChannelStartupService {
       }
     }
 
+    // Build remoteJid filter - also try LID if phone number format
+    let remoteJidFilter: any = {};
+    if (keyFilters?.remoteJid) {
+      const remoteJidsToQuery = [keyFilters.remoteJid];
+      this.logger.info(`fetchMessages: Looking for messages with remoteJid ${keyFilters.remoteJid}`);
+      this.logger.info(
+        `fetchMessages: client exists: ${!!this.client}, signalRepo exists: ${!!(this.client as any)?.signalRepository}`,
+      );
+
+      // If phone number format, also try to query by LID
+      if (keyFilters.remoteJid.includes('@s.whatsapp.net')) {
+        this.logger.info(`fetchMessages: Phone number format detected, attempting LID lookup...`);
+        try {
+          const lid = await this.getLidForPhoneNumber(keyFilters.remoteJid);
+          if (lid) {
+            remoteJidsToQuery.push(lid);
+            this.logger.info(`fetchMessages: Also querying by LID ${lid} for ${keyFilters.remoteJid}`);
+          } else {
+            this.logger.info(`fetchMessages: No LID found for ${keyFilters.remoteJid}`);
+          }
+        } catch (error) {
+          this.logger.warn(`fetchMessages: LID lookup error: ${error?.message}`);
+        }
+      }
+
+      // If LID format, also try to query by phone number
+      if (keyFilters.remoteJid.includes('@lid')) {
+        try {
+          const phoneNumber = await this.resolveLidToPhoneNumber(keyFilters.remoteJid);
+          if (phoneNumber) {
+            remoteJidsToQuery.push(`${phoneNumber}@s.whatsapp.net`);
+            this.logger.info(`fetchMessages: Also querying by phone ${phoneNumber} for ${keyFilters.remoteJid}`);
+          }
+        } catch (error) {
+          // Continue with just the original remoteJid
+        }
+      }
+
+      // Build OR filter for multiple remoteJids
+      if (remoteJidsToQuery.length > 1) {
+        remoteJidFilter = {
+          OR: remoteJidsToQuery.map((jid) => ({ key: { path: ['remoteJid'], equals: jid } })),
+        };
+      } else {
+        remoteJidFilter = { key: { path: ['remoteJid'], equals: keyFilters.remoteJid } };
+      }
+    }
+
     const count = await this.prismaRepository.message.count({
       where: {
         instanceId: this.instanceId,
@@ -444,7 +491,7 @@ export class ChannelStartupService {
         AND: [
           keyFilters?.id ? { key: { path: ['id'], equals: keyFilters?.id } } : {},
           keyFilters?.fromMe ? { key: { path: ['fromMe'], equals: keyFilters?.fromMe } } : {},
-          keyFilters?.remoteJid ? { key: { path: ['remoteJid'], equals: keyFilters?.remoteJid } } : {},
+          remoteJidFilter,
           keyFilters?.participants ? { key: { path: ['participants'], equals: keyFilters?.participants } } : {},
         ],
       },
@@ -468,7 +515,7 @@ export class ChannelStartupService {
         AND: [
           keyFilters?.id ? { key: { path: ['id'], equals: keyFilters?.id } } : {},
           keyFilters?.fromMe ? { key: { path: ['fromMe'], equals: keyFilters?.fromMe } } : {},
-          keyFilters?.remoteJid ? { key: { path: ['remoteJid'], equals: keyFilters?.remoteJid } } : {},
+          remoteJidFilter,
           keyFilters?.participants ? { key: { path: ['participants'], equals: keyFilters?.participants } } : {},
         ],
       },
@@ -535,6 +582,56 @@ export class ChannelStartupService {
     });
   }
 
+  /**
+   * Resolve LID (Linked ID) to phone number using Baileys internal mapping.
+   * WhatsApp multi-device uses LID format internally, this converts to phone number.
+   */
+  public async resolveLidToPhoneNumber(lid: string): Promise<string | null> {
+    try {
+      if (!lid?.includes('@lid')) {
+        return null; // Not a LID format
+      }
+
+      // Use Baileys signal repository to get phone number from LID
+      const signalRepo = (this.client as any)?.signalRepository;
+      const rawPhoneNumber = await signalRepo?.lidMapping?.getPNForLID(lid);
+      if (rawPhoneNumber) {
+        // Extract just the phone number part (remove @s.whatsapp.net and device)
+        // e.g., "5511947879044:0@s.whatsapp.net" -> "5511947879044"
+        const cleanNumber = rawPhoneNumber.split('@')[0].split(':')[0];
+        return cleanNumber;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.warn(`Failed to resolve LID ${lid}: ${error?.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Get LID for a phone number using Baileys internal mapping.
+   * This can be used to match contacts (with phone numbers) to chats (with LIDs).
+   */
+  public async getLidForPhoneNumber(phoneNumber: string): Promise<string | null> {
+    try {
+      // Ensure proper format
+      const pnJid = phoneNumber.includes('@') ? phoneNumber : `${phoneNumber}@s.whatsapp.net`;
+
+      // Use Baileys signal repository to get LID for phone number
+      const signalRepo = (this.client as any)?.signalRepository;
+      const result = await signalRepo?.lidMapping?.getLIDsForPNs([pnJid]);
+      if (result && result.length > 0 && result[0]?.lid) {
+        return result[0].lid;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.warn(`Failed to get LID for phone ${phoneNumber}: ${error?.message}`);
+      return null;
+    }
+  }
+
   public async fetchChats(query: any) {
     const remoteJid = query?.where?.remoteJid
       ? query?.where?.remoteJid.includes('@')
@@ -542,34 +639,235 @@ export class ChannelStartupService {
         : createJid(query.where?.remoteJid)
       : null;
 
-    const contacts = await this.prismaRepository.contact.findMany({
+    // Query actual chats from the chat table - this contains the correct remoteJid format
+    // that matches how messages are stored (especially @lid format for multi-device sync)
+    const chats = await this.prismaRepository.chat.findMany({
       where: {
         instanceId: this.instanceId,
         ...(remoteJid ? { remoteJid } : {}),
       },
-      take: query?.take || 50,
+      take: query?.take || 100,
       skip: query?.skip || 0,
       orderBy: {
         updatedAt: 'desc',
       },
     });
 
-    // The Omni layer will handle any additional data mapping needed
-    if (contacts && isArray(contacts) && contacts.length > 0) {
-      return contacts.map((contact) => ({
+    // Get all contacts for this instance - these have proper names
+    const contacts = await this.prismaRepository.contact.findMany({
+      where: {
+        instanceId: this.instanceId,
+      },
+    });
+
+    // Build a lookup map for contacts by remoteJid (phone number format)
+    const contactMap = new Map<string, (typeof contacts)[0]>();
+    for (const contact of contacts) {
+      contactMap.set(contact.remoteJid, contact);
+      // Also map by just the phone number (without @s.whatsapp.net)
+      const phoneNumber = contact.remoteJid.split('@')[0];
+      if (phoneNumber) {
+        contactMap.set(phoneNumber, contact);
+      }
+    }
+
+    // Try to resolve LIDs to phone numbers using Baileys signal repository
+    // This allows us to match LID chats to contacts with names
+    const lidToPhoneMap = new Map<string, string>();
+    const phoneToLidMap = new Map<string, string>();
+
+    // First, try forward lookup: LID -> phone number (parallel for performance)
+    const lidChats = chats.filter((c) => c.remoteJid.includes('@lid'));
+    const resolutions = await Promise.all(
+      lidChats.map(async (chat) => {
+        try {
+          const phoneNumber = await this.resolveLidToPhoneNumber(chat.remoteJid);
+          return { lid: chat.remoteJid, phoneNumber };
+        } catch {
+          return { lid: chat.remoteJid, phoneNumber: null };
+        }
+      }),
+    );
+
+    // Build maps from parallel results
+    for (const { lid, phoneNumber } of resolutions) {
+      if (phoneNumber) {
+        this.logger.info(`LID forward lookup: ${lid} -> ${phoneNumber}`);
+        lidToPhoneMap.set(lid, phoneNumber);
+        phoneToLidMap.set(phoneNumber, lid);
+      }
+    }
+
+    // Log LID resolution stats (reverse lookup disabled for performance - it makes slow network requests)
+    const lidChatsCount = chats.filter((c) => c.remoteJid.includes('@lid')).length;
+    this.logger.info(`LID resolution: ${lidChatsCount} LID chats, ${lidToPhoneMap.size} mappings from forward lookup`);
+
+    // Filter out status@broadcast (WhatsApp status updates, not a real chat)
+    // Also filter any remoteJid starting with "status@" to be safe
+    const filteredChats = chats.filter(
+      (c) => !c.remoteJid.includes('status@broadcast') && !c.remoteJid.startsWith('status@'),
+    );
+
+    // Get the last message for each chat (for UI display)
+    // For LID chats, also include the resolved phone JID since sent messages use that format
+    const chatRemoteJids = filteredChats.map((c) => c.remoteJid);
+    const phoneJidsForLidChats = filteredChats
+      .filter((c) => c.remoteJid.includes('@lid') && lidToPhoneMap.has(c.remoteJid))
+      .map((c) => `${lidToPhoneMap.get(c.remoteJid)}@s.whatsapp.net`);
+    const allJidsToQuery = [...chatRemoteJids, ...phoneJidsForLidChats];
+
+    const lastMessages = await this.prismaRepository.$queryRawUnsafe<
+      Array<{ remoteJid: string; messageTimestamp: bigint; message: any }>
+    >(
+      `
+      SELECT DISTINCT ON (key->>'remoteJid')
+        key->>'remoteJid' as "remoteJid",
+        "messageTimestamp",
+        message
+      FROM "evo_Message"
+      WHERE "instanceId" = $1
+        AND key->>'remoteJid' = ANY($2::text[])
+      ORDER BY key->>'remoteJid', "messageTimestamp" DESC
+    `,
+      this.instanceId,
+      allJidsToQuery,
+    );
+
+    // Build a lookup map for last messages
+    // For LID chats, also map the phone JID messages to the LID
+    const lastMessageMap = new Map<string, (typeof lastMessages)[0]>();
+    for (const msg of lastMessages) {
+      lastMessageMap.set(msg.remoteJid, msg);
+    }
+    // Map phone JID messages to their corresponding LID chats
+    for (const [lid, phoneNumber] of lidToPhoneMap.entries()) {
+      const phoneJid = `${phoneNumber}@s.whatsapp.net`;
+      const phoneMsg = lastMessageMap.get(phoneJid);
+      const lidMsg = lastMessageMap.get(lid);
+      // Use the more recent message between LID and phone JID
+      if (phoneMsg && (!lidMsg || BigInt(phoneMsg.messageTimestamp) > BigInt(lidMsg.messageTimestamp))) {
+        lastMessageMap.set(lid, phoneMsg);
+      }
+    }
+
+    // Build result: chats from Chat table with resolved names
+    const results: any[] = [];
+    const seenJids = new Set<string>();
+    const seenPhoneNumbers = new Set<string>();
+
+    // First add chats that have messages (prioritize these)
+    for (const chat of filteredChats) {
+      const lastMsg = lastMessageMap.get(chat.remoteJid);
+      const isGroup = chat.remoteJid.includes('@g.us');
+
+      // Only include chats that have messages or are groups
+      if (!lastMsg && !isGroup) continue;
+
+      // Try to find contact by:
+      // 1. Direct remoteJid match
+      // 2. Resolved phone number from LID
+      let contact = contactMap.get(chat.remoteJid);
+      let resolvedPhoneNumber: string | null = null;
+
+      if (!contact && chat.remoteJid.includes('@lid')) {
+        resolvedPhoneNumber = lidToPhoneMap.get(chat.remoteJid) || null;
+        if (resolvedPhoneNumber) {
+          // Try to find contact by resolved phone number
+          contact = contactMap.get(resolvedPhoneNumber) || contactMap.get(`${resolvedPhoneNumber}@s.whatsapp.net`);
+          if (contact) {
+            seenPhoneNumbers.add(resolvedPhoneNumber);
+          }
+        }
+      }
+
+      seenJids.add(chat.remoteJid);
+      results.push({
+        id: chat.id,
+        remoteJid: chat.remoteJid,
+        pushName: chat.name || contact?.pushName || null,
+        name: chat.name || contact?.pushName || null,
+        profilePicUrl: contact?.profilePicUrl || null,
+        updatedAt: chat.updatedAt,
+        createdAt: chat.createdAt,
+        unreadCount: chat.unreadMessages || 0,
+        lastMessage: lastMsg
+          ? {
+              messageTimestamp: lastMsg.messageTimestamp?.toString(),
+              message: lastMsg.message,
+            }
+          : null,
+        // Store resolved phone number for reference
+        resolvedPhoneNumber: resolvedPhoneNumber,
+        isSaved: true,
+      });
+    }
+
+    // Then add contacts with @s.whatsapp.net that have names and weren't already matched
+    for (const contact of contacts) {
+      if (seenJids.has(contact.remoteJid)) continue;
+      if (contact.remoteJid.includes('@g.us')) continue;
+      if (!contact.pushName) continue;
+
+      // Skip if this contact was already matched to a LID chat
+      const phoneNumber = contact.remoteJid.split('@')[0];
+      if (seenPhoneNumbers.has(phoneNumber)) continue;
+
+      // Check if this contact has messages
+      const contactLastMsg = await this.prismaRepository.$queryRawUnsafe<
+        Array<{ remoteJid: string; messageTimestamp: bigint; message: any }>
+      >(
+        `
+        SELECT key->>'remoteJid' as "remoteJid", "messageTimestamp", message
+        FROM "evo_Message"
+        WHERE "instanceId" = $1
+          AND key->>'remoteJid' = $2
+        ORDER BY "messageTimestamp" DESC
+        LIMIT 1
+      `,
+        this.instanceId,
+        contact.remoteJid,
+      );
+
+      seenJids.add(contact.remoteJid);
+      results.push({
         id: contact.id,
         remoteJid: contact.remoteJid,
         pushName: contact.pushName,
-        profilePicUrl: contact.profilePicUrl,
+        name: contact.pushName,
+        profilePicUrl: contact.profilePicUrl || null,
         updatedAt: contact.updatedAt,
         createdAt: contact.createdAt,
-        // Legacy fields for compatibility
-        isSaved: true,
         unreadCount: 0,
-      }));
+        lastMessage:
+          contactLastMsg.length > 0
+            ? {
+                messageTimestamp: contactLastMsg[0].messageTimestamp?.toString(),
+                message: contactLastMsg[0].message,
+              }
+            : null,
+        isSaved: true,
+      });
     }
 
-    return [];
+    // Sort by lastMessage timestamp (most recent first)
+    // Chats without messages go to the bottom, sorted by updatedAt as tiebreaker
+    results.sort((a, b) => {
+      // Use lastMessage timestamp (in seconds), convert to ms
+      const aLastMsgTime = a.lastMessage?.messageTimestamp ? Number(a.lastMessage.messageTimestamp) * 1000 : 0;
+      const bLastMsgTime = b.lastMessage?.messageTimestamp ? Number(b.lastMessage.messageTimestamp) * 1000 : 0;
+
+      // If both have no messages, sort by updatedAt as tiebreaker (keeps them grouped at bottom)
+      if (aLastMsgTime === 0 && bLastMsgTime === 0) {
+        const aUpdated = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bUpdated = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return bUpdated - aUpdated;
+      }
+
+      // Chats without messages go to bottom (use 0 instead of falling back to updatedAt)
+      return bLastMsgTime - aLastMsgTime;
+    });
+
+    return results;
   }
 
   public hasValidMediaContent(message: any): boolean {
