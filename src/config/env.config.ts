@@ -750,7 +750,7 @@ export class ConfigService {
         },
       },
       CONFIG_SESSION_PHONE: {
-        CLIENT: process.env?.CONFIG_SESSION_PHONE_CLIENT || 'Automagik Omni',
+        CLIENT: process.env?.CONFIG_SESSION_PHONE_CLIENT || 'Omni',
         NAME: process.env?.CONFIG_SESSION_PHONE_NAME || 'Chrome',
       },
       QRCODE: {
