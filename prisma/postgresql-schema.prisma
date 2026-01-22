@@ -133,6 +133,8 @@ model OmniInstanceConfigs {
   isDefault                 Boolean? @default(false) @db.Boolean @map("is_default")
   isActive                  Boolean? @default(false) @db.Boolean @map("is_active")
   enableAutoSplit           Boolean  @default(true) @db.Boolean @map("enable_auto_split")
+  messageDebounceSeconds    Int      @default(0) @map("message_debounce_seconds")
+  disableUsernamePrefix     Boolean  @default(false) @db.Boolean @map("disable_username_prefix")
   createdAt                 DateTime @default(now()) @db.Timestamp @map("created_at")
   updatedAt                 DateTime @default(now()) @db.Timestamp @map("updated_at")
 
