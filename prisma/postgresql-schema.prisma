@@ -100,6 +100,25 @@ model OmniSettingChangeHistory {
   @@index([changedAt], map: "ix_omni_setting_change_history_changed_at")
 }
 
+model OmniAgentProviders {
+  id               Int       @id @default(autoincrement()) @map("id")
+  name             String    @db.VarChar(255) @map("name")
+  apiUrl           String    @db.Text @map("api_url")
+  apiKey           String    @db.Text @map("api_key")
+  description      String?   @db.Text @map("description")
+  isActive         Boolean   @default(true) @db.Boolean @map("is_active")
+  lastHealthCheck  DateTime? @db.Timestamp @map("last_health_check")
+  lastHealthStatus String?   @db.VarChar(20) @map("last_health_status")
+  createdAt        DateTime  @default(now()) @db.Timestamp @map("created_at")
+  updatedAt        DateTime  @default(now()) @db.Timestamp @map("updated_at")
+
+  instances OmniInstanceConfigs[]
+
+  @@map("omni_agent_providers")
+  @@unique([name], map: "ix_omni_agent_providers_name")
+  @@index([isActive], map: "ix_omni_agent_providers_is_active")
+}
+
 model OmniInstanceConfigs {
   id                        Int      @id @default(autoincrement()) @map("id")
   name                      String   @db.VarChar(255) @map("name")
@@ -117,6 +136,7 @@ model OmniInstanceConfigs {
   discordSlashCommandsEnabled Boolean? @default(true) @db.Boolean @map("discord_slash_commands_enabled")
   discordWebhookUrl         String?  @db.Text @map("discord_webhook_url")
   discordPermissions        Int?     @map("discord_permissions")
+  agentProviderId           Int?     @map("agent_provider_id")
   agentApiUrl               String?  @db.Text @map("agent_api_url")
   agentApiKey               String?  @db.Text @map("agent_api_key")
   agentId                   String?  @db.VarChar(255) @default("default") @map("agent_id")
@@ -134,11 +154,14 @@ model OmniInstanceConfigs {
   createdAt                 DateTime @default(now()) @db.Timestamp @map("created_at")
   updatedAt                 DateTime @default(now()) @db.Timestamp @map("updated_at")
 
+  agentProvider OmniAgentProviders? @relation(fields: [agentProviderId], references: [id], onDelete: SetNull)
+
   @@map("omni_instance_configs")
   @@unique([name], map: "ix_omni_instance_configs_name")
   @@index([isDefault], map: "ix_omni_instance_configs_is_default")
   @@index([isActive], map: "ix_omni_instance_configs_is_active")
   @@index([channelType], map: "ix_omni_instance_configs_channel_type")
+  @@index([agentProviderId], map: "ix_omni_instance_configs_agent_provider_id")
 }
 
 model OmniUsers {
