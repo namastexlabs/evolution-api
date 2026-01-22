@@ -1105,7 +1105,8 @@ export class BaileysStartupService extends ChannelStartupService {
             await this.client.readMessages([received.key]);
           }
 
-          if (this.configService.get<Database>('DATABASE').SAVE_DATA.NEW_MESSAGE) {
+          const saveNewMessage = this.configService.get<Database>('DATABASE').SAVE_DATA.NEW_MESSAGE;
+          if (saveNewMessage) {
             const msg = await this.prismaRepository.message.create({ data: messageRaw });
 
             const { remoteJid } = received.key;
@@ -1116,18 +1117,24 @@ export class BaileysStartupService extends ChannelStartupService {
             const cachedTimestamp = await this.baileysCache.get(messageKey);
 
             if (!cachedTimestamp) {
-              if (!received.key.fromMe) {
-                if (msg.status === status[3]) {
-                  this.logger.log(`Update not read messages ${remoteJid}`);
-                  await this.updateChatUnreadMessages(remoteJid);
-                } else if (msg.status === status[4]) {
+              try {
+                if (!received.key.fromMe) {
+                  if (msg.status === status[3]) {
+                    this.logger.log(`Update not read messages ${remoteJid}`);
+                    await this.updateChatUnreadMessages(remoteJid);
+                  } else if (msg.status === status[4]) {
+                    this.logger.log(`Update readed messages ${remoteJid} - ${timestamp}`);
+                    await this.updateMessagesReadedByTimestamp(remoteJid, timestamp);
+                  }
+                } else {
+                  // is send message by me
                   this.logger.log(`Update readed messages ${remoteJid} - ${timestamp}`);
                   await this.updateMessagesReadedByTimestamp(remoteJid, timestamp);
                 }
-              } else {
-                // is send message by me
-                this.logger.log(`Update readed messages ${remoteJid} - ${timestamp}`);
-                await this.updateMessagesReadedByTimestamp(remoteJid, timestamp);
+              } catch (updateError: any) {
+                // Log error but continue processing - updateChatUnreadMessages/updateMessagesReadedByTimestamp
+                // may fail but shouldn't block webhook dispatch
+                this.logger.warn(`Error in update methods: ${updateError?.message || 'unknown'}`);
               }
 
               await this.baileysCache.set(messageKey, true, this.MESSAGE_CACHE_TTL_SECONDS);
@@ -1602,7 +1609,6 @@ export class BaileysStartupService extends ChannelStartupService {
 
         if (events['messages.upsert']) {
           const payload = events['messages.upsert'];
-
           this.messageProcessor.processMessage(payload, settings);
           // this.messageHandle['messages.upsert'](payload, settings);
         }

@@ -37,9 +37,6 @@ export class BaileysMessageProcessor {
 
     this.subscription = this.messageSubject
       .pipe(
-        tap(({ messages }) => {
-          this.processorLogs.log(`Processing batch of ${messages.length} messages`);
-        }),
         concatMap(({ messages, type, requestId, settings }) =>
           from(onMessageReceive({ messages, type, requestId }, settings)).pipe(
             retryWhen((errors) =>
@@ -65,6 +62,11 @@ export class BaileysMessageProcessor {
 
   processMessage(payload: MessageUpsertPayload, settings: any) {
     const { messages, type, requestId } = payload;
+    if (!this.subscription || this.subscription.closed) {
+      this.processorLogs.error(
+        `Subscription is ${!this.subscription ? 'UNDEFINED' : 'CLOSED'}! Messages will NOT be processed.`,
+      );
+    }
     this.messageSubject.next({ messages, type, requestId, settings });
   }
 
