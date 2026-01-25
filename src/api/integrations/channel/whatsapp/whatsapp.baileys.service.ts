@@ -1582,7 +1582,7 @@ export class BaileysStartupService extends ChannelStartupService {
             this.client.rejectCall(call.id, call.from);
           }
 
-          if (settings?.msgCall?.trim().length > 0 && call.status == 'offer') {
+          if (settings?.rejectCall && settings?.msgCall?.trim().length > 0 && call.status == 'offer') {
             if (call.from.endsWith('@lid')) {
               call.from = await this.client.signalRepository.lidMapping.getPNForLID(call.from as string);
             }
