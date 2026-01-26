@@ -286,6 +286,7 @@ model OmniMediaContent {
   instanceName          String    @db.VarChar(255) @map("instance_name")
   channelType           String    @db.VarChar(20) @map("channel_type")
   originalMessageId     String    @db.VarChar(255) @map("original_message_id")
+  senderId              String?   @db.VarChar(255) @map("sender_id")
   contentType           String    @db.VarChar(50) @map("content_type")
   sourceMediaType       String    @db.VarChar(50) @map("source_media_type")
   content               String    @db.Text @map("content")
@@ -319,11 +320,12 @@ model OmniMediaContent {
   processedAt           DateTime? @db.Timestamp @map("processed_at")
 
   @@map("omni_media_content")
-  @@unique([instanceName, originalMessageId, contentType], map: "uq_media_content_instance_msg_type")
+  @@unique([instanceName, originalMessageId, senderId, contentType], map: "uq_media_content_instance_msg_sender_type")
   @@index([instanceName], map: "ix_omni_media_content_instance")
   @@index([status], map: "ix_omni_media_content_status")
   @@index([contentType], map: "ix_omni_media_content_type")
   @@index([originalMessageId], map: "ix_omni_media_content_message_id")
+  @@index([senderId], map: "ix_omni_media_content_sender")
   @@index([createdAt], map: "ix_omni_media_content_created_at")
 }
 
