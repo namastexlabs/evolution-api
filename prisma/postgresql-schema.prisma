@@ -336,6 +336,7 @@ model OmniBatchJobs {
   instanceName    String?   @db.VarChar(255) @map("instance_name")
   requestParams   String?   @db.Text @map("request_params")
   status          String?   @db.VarChar(20) @default("pending") @map("status")
+  totalFound      Int?      @default(0) @map("total_found")
   totalItems      Int?      @default(0) @map("total_items")
   processedItems  Int?      @default(0) @map("processed_items")
   failedItems     Int?      @default(0) @map("failed_items")
