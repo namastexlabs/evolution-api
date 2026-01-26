@@ -294,6 +294,19 @@ model OmniMediaContent {
   processorModel        String?   @db.VarChar(100) @map("processor_model")
   processingTimeMs      Int?      @map("processing_time_ms")
   confidenceScore       Int?      @map("confidence_score")
+  // Token/usage tracking
+  inputTokens           Int?      @map("input_tokens")
+  outputTokens          Int?      @map("output_tokens")
+  totalTokens           Int?      @map("total_tokens")
+  // Cost tracking (USD)
+  costInputUsd          Decimal?  @db.Decimal(10, 8) @map("cost_input_usd")
+  costOutputUsd         Decimal?  @db.Decimal(10, 8) @map("cost_output_usd")
+  costTotalUsd          Decimal?  @db.Decimal(10, 8) @map("cost_total_usd")
+  // Pricing metadata
+  pricingModel          String?   @db.VarChar(100) @map("pricing_model")
+  pricingRateInput      Decimal?  @db.Decimal(10, 8) @map("pricing_rate_input")
+  pricingRateOutput     Decimal?  @db.Decimal(10, 8) @map("pricing_rate_output")
+  // Source media info
   mediaUrl              String?   @db.Text @map("media_url")
   mediaMimeType         String?   @db.VarChar(100) @map("media_mime_type")
   mediaSizeBytes        Int?      @map("media_size_bytes")
