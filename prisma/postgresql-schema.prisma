@@ -329,6 +329,34 @@ model OmniMediaContent {
   @@index([createdAt], map: "ix_omni_media_content_created_at")
 }
 
+// Batch job tracking for async processing with progress
+model OmniBatchJobs {
+  jobId           String    @id @map("job_id")
+  jobType         String    @db.VarChar(50) @map("job_type")
+  instanceName    String?   @db.VarChar(255) @map("instance_name")
+  requestParams   String?   @db.Text @map("request_params")
+  status          String?   @db.VarChar(20) @default("pending") @map("status")
+  totalItems      Int?      @default(0) @map("total_items")
+  processedItems  Int?      @default(0) @map("processed_items")
+  failedItems     Int?      @default(0) @map("failed_items")
+  skippedItems    Int?      @default(0) @map("skipped_items")
+  currentItem     String?   @db.VarChar(255) @map("current_item")
+  resultsSummary  String?   @db.Text @map("results_summary")
+  errorMessage    String?   @db.Text @map("error_message")
+  createdAt       DateTime? @db.Timestamp @default(now()) @map("created_at")
+  startedAt       DateTime? @db.Timestamp @map("started_at")
+  completedAt     DateTime? @db.Timestamp @map("completed_at")
+  totalCostUsd    Decimal?  @db.Decimal(10, 8) @map("total_cost_usd")
+  totalTokens     Int?      @map("total_tokens")
+
+  @@map("omni_batch_jobs")
+  @@index([jobId], map: "ix_omni_batch_jobs_job_id")
+  @@index([jobType], map: "ix_omni_batch_jobs_job_type")
+  @@index([instanceName], map: "ix_omni_batch_jobs_instance_name")
+  @@index([status], map: "ix_omni_batch_jobs_status")
+  @@index([createdAt], map: "ix_omni_batch_jobs_created_at")
+}
+
 model OmniUserPreferences {
   id        Int      @id @default(autoincrement()) @map("id")
   sessionId String   @db.VarChar(255) @map("session_id")
