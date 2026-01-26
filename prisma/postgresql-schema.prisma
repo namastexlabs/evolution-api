@@ -281,6 +281,39 @@ model OmniTracePayloads {
   @@index([timestamp], map: "ix_omni_trace_payloads_timestamp")
 }
 
+model OmniMediaContent {
+  id                    Int       @id @default(autoincrement()) @map("id")
+  instanceName          String    @db.VarChar(255) @map("instance_name")
+  channelType           String    @db.VarChar(20) @map("channel_type")
+  originalMessageId     String    @db.VarChar(255) @map("original_message_id")
+  contentType           String    @db.VarChar(50) @map("content_type")
+  sourceMediaType       String    @db.VarChar(50) @map("source_media_type")
+  content               String    @db.Text @map("content")
+  contentFormat         String?   @db.VarChar(20) @default("text") @map("content_format")
+  processorName         String?   @db.VarChar(100) @map("processor_name")
+  processorModel        String?   @db.VarChar(100) @map("processor_model")
+  processingTimeMs      Int?      @map("processing_time_ms")
+  confidenceScore       Int?      @map("confidence_score")
+  mediaUrl              String?   @db.Text @map("media_url")
+  mediaMimeType         String?   @db.VarChar(100) @map("media_mime_type")
+  mediaSizeBytes        Int?      @map("media_size_bytes")
+  mediaDurationSeconds  Int?      @map("media_duration_seconds")
+  mediaKey              String?   @db.Text @map("media_key")
+  status                String?   @db.VarChar(20) @default("pending") @map("status")
+  errorMessage          String?   @db.Text @map("error_message")
+  retryCount            Int?      @default(0) @map("retry_count")
+  createdAt             DateTime? @db.Timestamp @default(now()) @map("created_at")
+  processedAt           DateTime? @db.Timestamp @map("processed_at")
+
+  @@map("omni_media_content")
+  @@unique([instanceName, originalMessageId, contentType], map: "uq_media_content_instance_msg_type")
+  @@index([instanceName], map: "ix_omni_media_content_instance")
+  @@index([status], map: "ix_omni_media_content_status")
+  @@index([contentType], map: "ix_omni_media_content_type")
+  @@index([originalMessageId], map: "ix_omni_media_content_message_id")
+  @@index([createdAt], map: "ix_omni_media_content_created_at")
+}
+
 model OmniUserPreferences {
   id        Int      @id @default(autoincrement()) @map("id")
   sessionId String   @db.VarChar(255) @map("session_id")
