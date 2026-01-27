@@ -358,6 +358,81 @@ model OmniBatchJobs {
   @@index([createdAt], map: "ix_omni_batch_jobs_created_at")
 }
 
+// Unified message store - consolidates ALL messages from webhooks and synced history
+// Enables media processing on all messages and reduces Evolution API dependency
+model OmniMessages {
+  id                    String    @id @db.VarChar(512) @map("id")
+  // Instance and chat linkage
+  instanceName          String    @db.VarChar(255) @map("instance_name")
+  channelType           String    @db.VarChar(20) @map("channel_type")
+  chatId                String    @db.VarChar(255) @map("chat_id")
+  canonicalChatId       String?   @db.VarChar(255) @map("canonical_chat_id")
+  // Platform-specific identification
+  platformMessageId     String    @db.VarChar(255) @map("platform_message_id")
+  platformKey           Json?     @db.JsonB @map("platform_key")
+  // Direction and sender
+  direction             String    @db.VarChar(10) @map("direction")
+  senderId              String?   @db.VarChar(255) @map("sender_id")
+  senderName            String?   @db.VarChar(255) @map("sender_name")
+  isFromMe              Boolean   @default(false) @db.Boolean @map("is_from_me")
+  // Message content
+  messageType           String    @db.VarChar(50) @map("message_type")
+  contentText           String?   @db.Text @map("content_text")
+  contentRaw            Json?     @db.JsonB @map("content_raw")
+  // Media information
+  hasMedia              Boolean   @default(false) @db.Boolean @map("has_media")
+  mediaUrl              String?   @db.Text @map("media_url")
+  mediaLocalPath        String?   @db.Text @map("media_local_path")
+  mediaMimeType         String?   @db.VarChar(100) @map("media_mime_type")
+  mediaSizeBytes        Int?      @map("media_size_bytes")
+  mediaDurationSeconds  Int?      @map("media_duration_seconds")
+  mediaKey              String?   @db.Text @map("media_key")
+  mediaSha256           String?   @db.VarChar(64) @map("media_sha256")
+  mediaStatus           String    @default("pending") @db.VarChar(20) @map("media_status")
+  // Context/threading
+  quotedMessageId       String?   @db.VarChar(255) @map("quoted_message_id")
+  contextInfo           Json?     @db.JsonB @map("context_info")
+  // Delivery status
+  deliveryStatus        String?   @db.VarChar(20) @map("delivery_status")
+  statusUpdatedAt       DateTime? @db.Timestamp @map("status_updated_at")
+  // Source tracking
+  source                String    @db.VarChar(20) @map("source")
+  syncBatchId           String?   @db.VarChar(255) @map("sync_batch_id")
+  traceId               String?   @db.VarChar(255) @map("trace_id")
+  // Timestamps
+  messageTimestamp      DateTime  @db.Timestamp @map("message_timestamp")
+  createdAt             DateTime  @default(now()) @db.Timestamp @map("created_at")
+  updatedAt             DateTime  @default(now()) @db.Timestamp @map("updated_at")
+  syncedAt              DateTime? @db.Timestamp @map("synced_at")
+
+  @@map("omni_messages")
+  @@unique([instanceName, platformMessageId], map: "uq_omni_messages_platform")
+  @@index([instanceName, chatId], map: "ix_omni_messages_instance_chat")
+  @@index([instanceName, canonicalChatId], map: "ix_omni_messages_canonical_chat")
+  @@index([source], map: "ix_omni_messages_source")
+  @@index([messageType], map: "ix_omni_messages_type")
+  @@index([traceId], map: "ix_omni_messages_trace_id")
+}
+
+// Chat ID mappings for unified conversation queries
+// Maps alternate chat IDs (@lid format) to canonical IDs (@s.whatsapp.net format)
+model OmniChatIdMappings {
+  id               Int       @id @default(autoincrement()) @map("id")
+  instanceName     String    @db.VarChar(255) @map("instance_name")
+  canonicalChatId  String    @db.VarChar(255) @map("canonical_chat_id")
+  alternateChatId  String    @db.VarChar(255) @map("alternate_chat_id")
+  contactName      String?   @db.VarChar(255) @map("contact_name")
+  phoneNumber      String?   @db.VarChar(50) @map("phone_number")
+  discoveryMethod  String?   @db.VarChar(50) @map("discovery_method")
+  createdAt        DateTime  @default(now()) @db.Timestamp @map("created_at")
+  updatedAt        DateTime  @default(now()) @db.Timestamp @map("updated_at")
+
+  @@map("omni_chat_id_mappings")
+  @@unique([instanceName, alternateChatId], map: "uq_chat_mapping_alternate")
+  @@index([instanceName, canonicalChatId], map: "ix_chat_mappings_canonical")
+  @@index([instanceName, alternateChatId], map: "ix_chat_mappings_alternate")
+}
+
 model OmniUserPreferences {
   id        Int      @id @default(autoincrement()) @map("id")
   sessionId String   @db.VarChar(255) @map("session_id")
