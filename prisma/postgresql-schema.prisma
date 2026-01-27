@@ -433,6 +433,41 @@ model OmniChatIdMappings {
   @@index([instanceName, alternateChatId], map: "ix_chat_mappings_alternate")
 }
 
+// Local chat metadata storage for fast queries without Evolution API dependency
+model OmniChats {
+  id                 String    @id @db.VarChar(512) @map("id")
+  instanceName       String    @db.VarChar(255) @map("instance_name")
+  channelType        String    @db.VarChar(20) @map("channel_type")
+  chatId             String    @db.VarChar(255) @map("chat_id")
+  canonicalChatId    String?   @db.VarChar(255) @map("canonical_chat_id")
+  name               String?   @db.VarChar(255) @map("name")
+  chatType           String    @db.VarChar(20) @map("chat_type")
+  avatarUrl          String?   @db.Text @map("avatar_url")
+  description        String?   @db.Text @map("description")
+  participantCount   Int?      @map("participant_count")
+  isMuted            Boolean   @default(false) @db.Boolean @map("is_muted")
+  isArchived         Boolean   @default(false) @db.Boolean @map("is_archived")
+  isPinned           Boolean   @default(false) @db.Boolean @map("is_pinned")
+  isReadOnly         Boolean   @default(false) @db.Boolean @map("is_read_only")
+  unreadCount        Int?      @default(0) @map("unread_count")
+  messageCount       Int?      @default(0) @map("message_count")
+  lastMessageAt      DateTime? @db.Timestamp @map("last_message_at")
+  lastMessagePreview String?   @db.VarChar(255) @map("last_message_preview")
+  contactName        String?   @db.VarChar(255) @map("contact_name")
+  contactPhone       String?   @db.VarChar(50) @map("contact_phone")
+  evoChatId          String?   @db.VarChar(255) @map("evo_chat_id")
+  syncedAt           DateTime? @db.Timestamp @map("synced_at")
+  createdAt          DateTime  @default(now()) @db.Timestamp @map("created_at")
+  updatedAt          DateTime  @default(now()) @db.Timestamp @map("updated_at")
+
+  @@map("omni_chats")
+  @@unique([instanceName, chatId], map: "uq_omni_chats_instance_chat")
+  @@index([instanceName], map: "ix_omni_chats_instance")
+  @@index([instanceName, canonicalChatId], map: "ix_omni_chats_canonical")
+  @@index([instanceName, chatType], map: "ix_omni_chats_type")
+  @@index([instanceName, lastMessageAt], map: "ix_omni_chats_last_message")
+}
+
 model OmniUserPreferences {
   id        Int      @id @default(autoincrement()) @map("id")
   sessionId String   @db.VarChar(255) @map("session_id")
