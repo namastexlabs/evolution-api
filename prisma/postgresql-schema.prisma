@@ -457,6 +457,8 @@ model OmniChats {
   contactPhone       String?   @db.VarChar(50) @map("contact_phone")
   evoChatId          String?   @db.VarChar(255) @map("evo_chat_id")
   syncedAt           DateTime? @db.Timestamp @map("synced_at")
+  skipMediaProcessing Boolean  @default(false) @db.Boolean @map("skip_media_processing")
+  processingNote     String?   @db.VarChar(255) @map("processing_note")
   createdAt          DateTime  @default(now()) @db.Timestamp @map("created_at")
   updatedAt          DateTime  @default(now()) @db.Timestamp @map("updated_at")
 
