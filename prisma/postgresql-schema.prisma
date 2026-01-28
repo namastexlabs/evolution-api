@@ -158,6 +158,7 @@ model OmniInstanceConfigs {
   messageSplitDelayMinMs    Int      @default(300) @map("message_split_delay_min_ms")
   messageSplitDelayMaxMs    Int      @default(1000) @map("message_split_delay_max_ms")
   disableUsernamePrefix     Boolean  @default(false) @db.Boolean @map("disable_username_prefix")
+  processMediaOnBlocked     Boolean  @default(true) @db.Boolean @map("process_media_on_blocked")
   createdAt                 DateTime @default(now()) @db.Timestamp @map("created_at")
   updatedAt                 DateTime @default(now()) @db.Timestamp @map("updated_at")
 
