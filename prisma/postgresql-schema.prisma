@@ -173,8 +173,11 @@ model OmniInstanceConfigs {
 
 model OmniUsers {
   id                       String   @id @map("id")
-  phoneNumber              String   @db.VarChar(255) @map("phone_number")
-  whatsappJid              String   @db.VarChar(255) @map("whatsapp_jid")
+  channelType              String   @db.VarChar(20) @default("whatsapp") @map("channel_type")
+  phoneNumber              String?  @db.VarChar(255) @map("phone_number")
+  whatsappJid              String?  @db.VarChar(255) @map("whatsapp_jid")
+  discordUserId            String?  @db.VarChar(255) @map("discord_user_id")
+  discordUsername          String?  @db.VarChar(255) @map("discord_username")
   instanceName             String   @db.VarChar(255) @map("instance_name")
   displayName              String?  @db.VarChar(255) @map("display_name")
   lastSessionNameInteraction String? @db.VarChar(255) @map("last_session_name_interaction")
@@ -185,8 +188,10 @@ model OmniUsers {
   updatedAt                DateTime? @db.Timestamp @default(now()) @map("updated_at")
 
   @@map("omni_users")
+  @@index([channelType], map: "ix_omni_users_channel_type")
   @@index([phoneNumber], map: "ix_omni_users_phone_number")
   @@index([whatsappJid], map: "ix_omni_users_whatsapp_jid")
+  @@index([discordUserId], map: "ix_omni_users_discord_user_id")
   @@index([instanceName], map: "ix_omni_users_instance_name")
   @@index([lastSessionNameInteraction], map: "ix_omni_users_last_session_name_interaction")
   @@index([lastSeenAt], map: "ix_omni_users_last_seen_at")
