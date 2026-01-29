@@ -329,9 +329,13 @@ model OmniMediaContent {
   status                String?   @db.VarChar(20) @default("pending") @map("status")
   errorMessage          String?   @db.Text @map("error_message")
   retryCount            Int?      @default(0) @map("retry_count")
+  // Batch job link (for tracking which job processed this item)
+  batchJobId            String?   @db.VarChar(36) @map("batch_job_id")
+  batchJob              OmniBatchJobs? @relation(fields: [batchJobId], references: [jobId])
   createdAt             DateTime? @db.Timestamp @default(now()) @map("created_at")
   processedAt           DateTime? @db.Timestamp @map("processed_at")
 
+  @@index([batchJobId], map: "ix_omni_media_content_batch_job")
   @@map("omni_media_content")
   @@unique([instanceName, originalMessageId, senderId, contentType], map: "uq_media_content_instance_msg_sender_type")
   @@index([instanceName], map: "ix_omni_media_content_instance")
@@ -362,6 +366,8 @@ model OmniBatchJobs {
   completedAt     DateTime? @db.Timestamp @map("completed_at")
   totalCostUsd    Decimal?  @db.Decimal(10, 8) @map("total_cost_usd")
   totalTokens     Int?      @map("total_tokens")
+  // Relation to media content items processed by this job
+  mediaContent    OmniMediaContent[]
 
   @@map("omni_batch_jobs")
   @@index([jobId], map: "ix_omni_batch_jobs_job_id")
